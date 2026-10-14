@@ -18,43 +18,69 @@ const allowedOrigins = [
   "https://zenuia.netlify.app",
 ];
 
-app.use(cors({
+app.use(
+  cors({
+    origin: allowedOrigins,
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
+
+// Handle CORS preflight requests
+app.options(/.*/, cors({
   origin: allowedOrigins,
   credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
 }));
 
 app.use(express.json());
 app.use(cookieParser());
 
-// Ensure database connection before API requests.
-app.use(async (req, res, next) => {
-  try {
-    await connectDB();
-    next();
-  } catch (error) {
-    console.error("Database connection failed:", error.message);
-    res.status(503).json({
-      message: "Database connection failed",
-    });
-  }
-});
-
+// Health check
 app.get("/", (req, res) => {
   res.json({ message: "ZenUI Backend Running 🚀" });
 });
 
+// API routes
 app.use("/api/auth", authRouter);
 app.use("/api/user", userRouter);
 app.use("/api/component", componentRouter);
 app.use("/api/payment", paymentRouter);
 
-// Local development only
+// Local development
 if (!process.env.VERCEL) {
   const PORT = process.env.PORT || 8000;
 
-  app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+  app.listen(PORT, async () => {
+    try {
+      await connectDB();
+      console.log(`Server running on port ${PORT}`);
+    } catch (error) {
+      console.error("Database connection failed:", error.message);
+    }
   });
 }
+
+// Vercel serverless handler
+let dbConnectionPromise;
+
+app.use(async (req, res, next) => {
+  try {
+    if (!dbConnectionPromise) {
+      dbConnectionPromise = connectDB().catch((error) => {
+        dbConnectionPromise = null;
+        throw error;
+      });
+    }
+
+    await dbConnectionPromise;
+    next();
+  } catch (error) {
+    console.error("Database connection failed:", error.message);
+    res.status(503).json({ message: "Database connection failed" });
+  }
+});
 
 export default app;
