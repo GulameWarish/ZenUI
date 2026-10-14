@@ -1,3 +1,4 @@
+
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
@@ -27,46 +28,21 @@ app.use(
   })
 );
 
-// Handle CORS preflight requests
-app.options(/.*/, cors({
-  origin: allowedOrigins,
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-}));
-
 app.use(express.json());
 app.use(cookieParser());
 
-// Health check
+// Health check: does not require a database connection.
 app.get("/", (req, res) => {
-  res.json({ message: "ZenUI Backend Running 🚀" });
+  res.status(200).json({
+    success: true,
+    message: "ZenUI Backend Running 🚀",
+  });
 });
 
-// API routes
-app.use("/api/auth", authRouter);
-app.use("/api/user", userRouter);
-app.use("/api/component", componentRouter);
-app.use("/api/payment", paymentRouter);
-
-// Local development
-if (!process.env.VERCEL) {
-  const PORT = process.env.PORT || 8000;
-
-  app.listen(PORT, async () => {
-    try {
-      await connectDB();
-      console.log(`Server running on port ${PORT}`);
-    } catch (error) {
-      console.error("Database connection failed:", error.message);
-    }
-  });
-}
-
-// Vercel serverless handler
+// Connect to MongoDB before handling API requests.
 let dbConnectionPromise;
 
-app.use(async (req, res, next) => {
+app.use("/api", async (req, res, next) => {
   try {
     if (!dbConnectionPromise) {
       dbConnectionPromise = connectDB().catch((error) => {
@@ -79,8 +55,27 @@ app.use(async (req, res, next) => {
     next();
   } catch (error) {
     console.error("Database connection failed:", error.message);
-    res.status(503).json({ message: "Database connection failed" });
+
+    return res.status(503).json({
+      success: false,
+      message: "Database connection failed",
+    });
   }
 });
 
-export default app;
+// API routes
+app.use("/api/auth", authRouter);
+app.use("/api/user", userRouter);
+app.use("/api/component", componentRouter);
+app.use("/api/payment", paymentRouter);
+
+// Local development only
+if (!process.env.VERCEL) {
+  const PORT = process.env.PORT || 8000;
+
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+}
+
+export default app; 
