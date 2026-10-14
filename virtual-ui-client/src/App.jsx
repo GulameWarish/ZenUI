@@ -1,83 +1,104 @@
-import React, { useEffect, useState } from 'react';
-import { Route, Routes } from 'react-router-dom';
-import axios from 'axios';
-import { useDispatch, useSelector } from 'react-redux';
 
-import Home from './pages/Home';
-import AdminDashboard from './pages/AdminDashboard';
-import ComponentGenerator from './pages/ComponentGenerator';
-import PricingPage from './pages/Pricingpage';
-import ComponentsPage from './pages/Componentspage';
-import MyComponentsPage from './pages/MyComponentsPage';
+import React, { useEffect, useState } from "react";
+import { Route, Routes } from "react-router-dom";
+import axios from "axios";
+import { useDispatch, useSelector } from "react-redux";
+
+import Home from "./pages/Home";
+import AdminDashboard from "./pages/AdminDashboard";
+import ComponentGenerator from "./pages/ComponentGenerator";
+import PricingPage from "./pages/Pricingpage";
+import ComponentsPage from "./pages/Componentspage";
+import MyComponentsPage from "./pages/MyComponentsPage";
 
 import {
   setAllComponents,
   setAllUsers,
-  setUserData
-} from './redux/userSlice';
+  setUserData,
+} from "./redux/userSlice";
 
-export const ServerUrl =
-  import.meta.env.VITE_API_URL || "http://localhost:8000";
+// Production URL comes from Netlify environment variables.
+export const ServerUrl = (
+  import.meta.env.VITE_API_URL || "http://localhost:8000"
+).replace(/\/+$/, "");
 
 function App() {
   const dispatch = useDispatch();
   const userData = useSelector((state) => state.user.userData);
-
   const [authChecked, setAuthChecked] = useState(false);
 
-  // ✅ Auth check (NON-BLOCKING)
+  // Check whether a user is logged in.
   useEffect(() => {
+    let cancelled = false;
+
     const fetchUser = async () => {
       try {
         const res = await axios.get(
           `${ServerUrl}/api/user/currentuser`,
           { withCredentials: true }
         );
-        dispatch(setUserData(res.data));
+
+        if (!cancelled) {
+          dispatch(setUserData(res.data));
+        }
       } catch (error) {
-        dispatch(setUserData(null)); // guest user
+        if (!cancelled) {
+          dispatch(setUserData(null));
+        }
       } finally {
-        setAuthChecked(true);
+        if (!cancelled) {
+          setAuthChecked(true);
+        }
       }
     };
 
     fetchUser();
+
+    return () => {
+      cancelled = true;
+    };
   }, [dispatch]);
 
-  // ✅ Fetch extra data ONLY if admin/user exists
+  // Fetch users and components when user data is available.
   useEffect(() => {
     if (!userData) return;
+
+    let cancelled = false;
 
     const fetchExtraData = async () => {
       try {
         const [usersRes, componentsRes] = await Promise.all([
           axios.get(`${ServerUrl}/api/user/all-users`, {
-            withCredentials: true
+            withCredentials: true,
           }),
           axios.get(`${ServerUrl}/api/component/all-components`, {
-            withCredentials: true
-          })
+            withCredentials: true,
+          }),
         ]);
 
-        dispatch(setAllUsers(usersRes.data));
-        dispatch(setAllComponents(componentsRes.data));
-
+        if (!cancelled) {
+          dispatch(setAllUsers(usersRes.data));
+          dispatch(setAllComponents(componentsRes.data));
+        }
       } catch (error) {
-        console.error("Extra API Error:", error);
+        console.error(
+          "Extra API Error:",
+          error.response?.data || error.message
+        );
       }
     };
 
     fetchExtraData();
-  }, [userData, dispatch]);
 
-  // ❌ REMOVE full screen loader
-  // ✔️ Instead allow render immediately
+    return () => {
+      cancelled = true;
+    };
+  }, [userData, dispatch]);
 
   return (
     <>
-      {/* Optional: small top loader */}
       {!authChecked && (
-        <div className="fixed top-0 left-0 w-full h-1 bg-purple-500 animate-pulse z-50" />
+        <div className="fixed left-0 top-0 z-50 h-1 w-full animate-pulse bg-purple-500" />
       )}
 
       <Routes>
