@@ -1,20 +1,27 @@
+
 import mongoose from "mongoose";
 
 const connectDB = async () => {
+  const mongoUrl = process.env.MONGODB_URL;
+
+  if (!mongoUrl) {
+    throw new Error(
+      "MONGODB_URL is missing. Check Vercel Environment Variables."
+    );
+  }
+
+  if (mongoose.connection.readyState === 1) {
+    return;
+  }
+
   try {
-    if (!process.env.MONGODB_URL) {
-      throw new Error("MONGODB_URL environment variable is missing");
-    }
-
-    if (mongoose.connection.readyState === 1) {
-      return;
-    }
-
-    await mongoose.connect(process.env.MONGODB_URL);
+    await mongoose.connect(mongoUrl, {
+      serverSelectionTimeoutMS: 10000,
+    });
 
     console.log("MongoDB connected successfully");
   } catch (error) {
-    console.error("MongoDB connection error:", error.message);
+    console.error("MongoDB connection failed:", error.message);
     throw error;
   }
 };
