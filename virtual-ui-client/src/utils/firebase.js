@@ -1,9 +1,12 @@
-
+```javascript
 import { initializeApp } from "firebase/app";
-import {getAuth, GoogleAuthProvider} from "firebase/auth"
+import {
+  getAuth,
+  GoogleAuthProvider
+} from "firebase/auth";
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_APIKEY,
+  apiKey: "YOUR_FIREBASE_API_KEY",
   authDomain: "gwui-ad19d.firebaseapp.com",
   projectId: "gwui-ad19d",
   storageBucket: "gwui-ad19d.firebasestorage.app",
@@ -12,9 +15,8 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const provider = new GoogleAuthProvider();
 
-const auth = getAuth(app)
-
-const provider = new GoogleAuthProvider()
-
-export {auth , provider}
+export { auth, provider };
+```
